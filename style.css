@@ -1,20 +1,21 @@
 body {
     margin: 0;
-    padding: 0;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
+    height: 100vh;
 }
 
+/* Bigger game panel */
 #game-container {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-#game-container canvas {
-    display: block;
-    border-radius: 4px;
+    width: 1200px;
+    height: 900px;
+    background: #2b2b2b;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
