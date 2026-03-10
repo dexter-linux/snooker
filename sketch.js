@@ -1,6 +1,5 @@
 /**
- * PRO SNOOKER 2026 - Championship Edition
- * Scale: 1 inch = 3.5 pixels | Rules: Regulation Respotting & Spacebar Controls
+ * PRO SNOOKER 2026 - Championship Edition (Respotting Fix)
  */
 
 let balls = [];
@@ -14,7 +13,7 @@ let phase = 'red';
 let ballsPottedThisShot = [];
 let foulCommitted = false;
 
-// Regulation Measurements
+// Regulation Measurements (3.5px = 1 inch)
 const SCALE = 3.5; 
 const TABLE_W = 144 * SCALE; 
 const TABLE_H = 72 * SCALE;  
@@ -27,7 +26,7 @@ const BLACK_SPOT_DIST = 12.75 * SCALE;
 const FRICTION = 0.991; 
 const ELASTICITY = 0.75;
 
-let spots = {}; 
+let snookerSpots = {}; // Renamed to avoid library conflicts
 let cueStick = { 
   angle: 0, power: 0, isCharging: false, 
   maxPower: 30, pullBack: 0, animationState: 'idle',
@@ -35,21 +34,25 @@ let cueStick = {
 };
 
 function setup() {
+  // Check if container exists, otherwise default to standard creation
   let canvas = createCanvas(TABLE_W + 120, TABLE_H + 200);
-  canvas.parent('game-container');
+  let container = select('#game-container');
+  if (container) {
+    canvas.parent('game-container');
+  }
   
   let ox = 60; let oy = 60;
   let midY = oy + TABLE_H/2;
   let baulkX = ox + BAULK_DIST;
 
-  // Define regulation spots
-  spots = {
-    7: createVector(ox + TABLE_W - BLACK_SPOT_DIST, midY), // Black
-    6: createVector(ox + TABLE_W * 0.75, midY),            // Pink
-    5: createVector(ox + TABLE_W/2, midY),                 // Blue
-    4: createVector(baulkX, midY),                         // Brown
-    3: createVector(baulkX, midY + D_RADIUS),              // Green
-    2: createVector(baulkX, midY - D_RADIUS)               // Yellow
+  // Regulation positions
+  snookerSpots = {
+    7: createVector(ox + TABLE_W - BLACK_SPOT_DIST, midY), 
+    6: createVector(ox + TABLE_W * 0.75, midY),            
+    5: createVector(ox + TABLE_W/2, midY),                 
+    4: createVector(baulkX, midY),                         
+    3: createVector(baulkX, midY + D_RADIUS),              
+    2: createVector(baulkX, midY - D_RADIUS)               
   };
 
   pockets = [
@@ -63,53 +66,45 @@ function setup() {
 function draw() {
   drawTable();
   
-  switch(gameState) {
-    case 'placing': handlePlacing(); break;
-    case 'aiming': updateAiming(); drawTrajectory(); drawCueStick(); break;
-    case 'shooting': updateCueAnimation(); drawCueStick(); break;
-    case 'moving': updatePhysics(); break;
-  }
+  if (gameState === 'placing') handlePlacing();
+  else if (gameState === 'aiming') { updateAiming(); drawTrajectory(); drawCueStick(); }
+  else if (gameState === 'shooting') { updateCueAnimation(); drawCueStick(); }
+  else if (gameState === 'moving') updatePhysics();
   
-  for (let ball of balls) ball.show();
+  for (let b of balls) b.show();
   drawUI();
 }
-
-// ────────────────────────────────────────────────
-// GAME LOGIC & RESPOTTING
-// ────────────────────────────────────────────────
 
 function initGame() {
   balls = [];
   let ox = 60; let midY = 60 + TABLE_H/2;
   let baulkX = ox + BAULK_DIST;
 
-  // Cue Ball
   cueBall = new Ball(baulkX - 30, midY + 20, '#fff', 0, false);
   balls.push(cueBall);
 
-  // Colors
-  for (let val in spots) {
+  for (let val in snookerSpots) {
     let col = getBallColor(val);
-    balls.push(new Ball(spots[val].x, spots[val].y, col, parseInt(val), false));
+    balls.push(new Ball(snookerSpots[val].x, snookerSpots[val].y, col, parseInt(val), false));
   }
 
-  // Reds (15 balls in triangle)
-  let pinkPos = spots[6];
+  let pinkPos = snookerSpots[6];
   let startReds = pinkPos.x + (BALL_R * 2) + 2; 
   for (let i = 0; i < 5; i++) {
     for (let j = 0; j <= i; j++) {
-      balls.push(new Ball(startReds + (i * BALL_R * 1.8), (midY - (i * BALL_R)) + (j * BALL_R * 2), '#f00', 1, true));
+      balls.push(new Ball(startReds + (i * BALL_R * 1.85), (midY - (i * BALL_R)) + (j * BALL_R * 2), '#f00', 1, true));
     }
   }
 }
 
+// Respotting Logic
 function findAvailableSpot(targetBall) {
-  let homePos = spots[targetBall.value];
+  let homePos = snookerSpots[targetBall.value];
   if (!isSpotOccupied(homePos)) return homePos;
 
   let spotOrder = [7, 6, 5, 4, 3, 2];
   for (let val of spotOrder) {
-    if (!isSpotOccupied(spots[val])) return spots[val];
+    if (!isSpotOccupied(snookerSpots[val])) return snookerSpots[val];
   }
 
   let tempPos = homePos.copy();
@@ -123,10 +118,6 @@ function isSpotOccupied(pos) {
   }
   return false;
 }
-
-// ────────────────────────────────────────────────
-// PHYSICS & COLLISION
-// ────────────────────────────────────────────────
 
 class Ball {
   constructor(x, y, col, val, isRed) {
@@ -142,7 +133,7 @@ class Ball {
     if (this.potted) return;
     this.pos.add(this.vel);
     this.vel.mult(FRICTION);
-    if (this.vel.mag() < 0.1) this.vel.set(0, 0);
+    if (this.vel.mag() < 0.15) this.vel.set(0, 0);
 
     let ox = 60; let oy = 60;
     if (this.pos.x < ox + BALL_R || this.pos.x > ox + TABLE_W - BALL_R) {
@@ -160,8 +151,8 @@ class Ball {
     fill(this.color);
     noStroke();
     ellipse(this.pos.x, this.pos.y, BALL_R * 2);
-    fill(255, 100);
-    ellipse(this.pos.x - 2, this.pos.y - 2, BALL_R * 0.6);
+    fill(255, 80);
+    ellipse(this.pos.x - 1, this.pos.y - 1, BALL_R * 0.5);
   }
 
   respot() {
@@ -178,7 +169,7 @@ class Ball {
       let rv = p5.Vector.sub(this.vel, other.vel);
       let speed = rv.dot(n);
       if (speed < 0) {
-        let impulse = n.mult(speed * 1.5);
+        let impulse = n.mult(speed * 1.6); // Slightly more bounce
         this.vel.sub(impulse);
         other.vel.add(impulse);
       }
@@ -200,10 +191,6 @@ function updatePhysics() {
   }
   if (!moving) endShot();
 }
-
-// ────────────────────────────────────────────────
-// INPUTS & UI
-// ────────────────────────────────────────────────
 
 function handlePlacing() {
   let ox = 60; let baulkX = ox + BAULK_DIST;
@@ -231,14 +218,14 @@ function keyReleased() {
 
 function updateAiming() {
   cueStick.angle = atan2(mouseY - cueBall.pos.y, mouseX - cueBall.pos.x);
-  if (cueStick.isCharging) cueStick.power = constrain(cueStick.power + 0.4, 0, cueStick.maxPower);
+  if (cueStick.isCharging) cueStick.power = constrain(cueStick.power + 0.5, 0, cueStick.maxPower);
 }
 
 function updateCueAnimation() {
   if (cueStick.animationState === 'pulling') {
     cueStick.pullBack = lerp(cueStick.pullBack, map(cueStick.power, 0, cueStick.maxPower, 0, cueStick.maxPullBack), 0.2);
   } else if (cueStick.animationState === 'striking') {
-    cueStick.pullBack = lerp(cueStick.pullBack, -10, 0.4);
+    cueStick.pullBack = lerp(cueStick.pullBack, -15, 0.5);
     if (cueStick.pullBack < 0) {
       cueBall.vel.set(p5.Vector.fromAngle(cueStick.angle).mult(cueStick.power));
       cueStick.animationState = 'idle';
@@ -247,40 +234,38 @@ function updateCueAnimation() {
   }
 }
 
-// ────────────────────────────────────────────────
-// DRAWING HELPERS
-// ────────────────────────────────────────────────
-
 function drawTable() {
-  background(25);
+  background(40);
   let ox = 60; let oy = 60;
-  fill(65, 35, 15); rect(ox-20, oy-20, TABLE_W+40, TABLE_H+40, 10);
-  fill(30, 100, 45); rect(ox, oy, TABLE_W, TABLE_H);
-  stroke(255, 60); line(ox+BAULK_DIST, oy, ox+BAULK_DIST, oy+TABLE_H);
+  fill(50, 25, 10); rect(ox-25, oy-25, TABLE_W+50, TABLE_H+50, 12);
+  fill(34, 139, 34); rect(ox, oy, TABLE_W, TABLE_H);
+  stroke(255, 80); line(ox+BAULK_DIST, oy, ox+BAULK_DIST, oy+TABLE_H);
   noFill(); arc(ox+BAULK_DIST, oy+TABLE_H/2, D_RADIUS*2, D_RADIUS*2, HALF_PI, -HALF_PI);
   fill(0); noStroke(); pockets.forEach(p => ellipse(p.x, p.y, POCKET_R*2));
 }
 
 function drawCueStick() {
   push(); translate(cueBall.pos.x, cueBall.pos.y); rotate(cueStick.angle);
-  fill(200, 160, 100); rect(-60 - cueStick.pullBack - 200, -3, 200, 6);
+  fill(222, 184, 135); rect(-50 - cueStick.pullBack - 220, -3, 220, 6, 2);
   pop();
 }
 
 function drawTrajectory() {
-  stroke(255, 40); line(cueBall.pos.x, cueBall.pos.y, cueBall.pos.x + cos(cueStick.angle)*300, cueBall.pos.y + sin(cueStick.angle)*300);
+  stroke(255, 60); drawingContext.setLineDash([5, 5]);
+  line(cueBall.pos.x, cueBall.pos.y, cueBall.pos.x + cos(cueStick.angle)*400, cueBall.pos.y + sin(cueStick.angle)*400);
+  drawingContext.setLineDash([]);
 }
 
 function drawUI() {
-  fill(255); textAlign(CENTER); textSize(16);
-  text(`P1: ${scores[0]} | P2: ${scores[1]} | BREAK: ${currentBreak}`, width/2, height - 50);
-  if (gameState === 'placing') text("DRAG BALL & PRESS SPACE", width/2, height - 80);
+  fill(255); textAlign(CENTER); textSize(18);
+  text(`P1: ${scores[0]} | P2: ${scores[1]} | BREAK: ${currentBreak}`, width/2, height - 60);
+  if (gameState === 'placing') text("DRAG CUE BALL IN 'D' & PRESS SPACE", width/2, height - 90);
 }
 
 function handlePot(ball) {
   ball.potted = true; ball.vel.set(0, 0); ballsPottedThisShot.push(ball);
-  let opp = currentPlayer === 1 ? 1 : 0;
-  if (ball === cueBall) { foulCommitted = true; scores[opp] += 4; }
+  let oppIdx = currentPlayer === 1 ? 1 : 0;
+  if (ball === cueBall) { foulCommitted = true; scores[oppIdx] += 4; }
   else if (ball.isRed) { scores[currentPlayer-1] += 1; currentBreak++; phase = 'color'; }
   else { 
     scores[currentPlayer-1] += ball.value; currentBreak += ball.value;
@@ -295,6 +280,6 @@ function endShot() {
 }
 
 function getBallColor(v) {
-  let colors = {7:'#111', 6:'#f0f', 5:'#00f', 4:'#842', 3:'#0f0', 2:'#ff0'};
+  let colors = {7:'#111', 6:'#f0f', 5:'#00f', 4:'#842', 3:'#00ff00', 2:'#ffff00'};
   return colors[v];
 }
