@@ -1,6 +1,3 @@
-/* style.css */
-
-/* 1. Base Reset and Layout */
 body {
     margin: 0;
     padding: 0;
@@ -8,83 +5,16 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #1a1a1a; /* Darker theme for better focus */
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden; /* Prevents scrolling on mobile during play */
-    touch-action: none; /* Prevents "pull-to-refresh" on mobile */
+    overflow: hidden;
 }
 
-/* 2. Responsive Canvas Styling */
+#game-container {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
 #game-container canvas {
     display: block;
-    max-width: 95vw;
-    max-height: 85vh;
-    width: auto !important;  /* Overrides p5 inline styles */
-    height: auto !important; /* Overrides p5 inline styles */
-    border: 8px solid #3d2b1f; /* Wood-like border for the table */
-    border-radius: 10px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-}
-
-/* 3. Game Menu & UI Buttons */
-/* p5.js createButton() elements are added to the body */
-button {
-    padding: 12px 24px;
-    margin: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    text-transform: uppercase;
-    cursor: pointer;
-    background: #e67e22; /* Snooker wood/orange accent */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px #d35400;
-}
-
-button:hover {
-    background: #f39c12;
-    transform: translateY(-2px);
-    box-shadow: 0 6px #d35400;
-}
-
-button:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px #d35400;
-}
-
-/* 4. Form/Menu Overlay Styling */
-.form-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.95);
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    text-align: center;
-    z-index: 100; /* Ensure it stays above the canvas */
-}
-
-input {
-    padding: 12px;
-    margin: 10px;
-    font-size: 16px;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    outline: none;
-}
-
-input:focus {
-    border-color: #e67e22;
-}
-
-/* 5. Mobile Adjustments */
-@media (max-width: 600px) {
-    button {
-        padding: 10px 16px;
-        font-size: 14px;
-    }
+    border-radius: 4px;
 }
