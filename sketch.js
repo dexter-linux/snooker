@@ -1,13 +1,12 @@
 /**
  * PRO SNOOKER 2026 - Championship Edition
- * Rules: Ball-in-hand in 'D', Red-Color sequence, Foul points.
+ * Controls: Mouse to move/aim, Spacebar to confirm place & charge power.
  */
 
 let balls = [];
 let cueBall;
 let pockets = [];
-let particles = [];
-let gameState = 'placing'; // Start in placing mode
+let gameState = 'placing'; 
 let currentPlayer = 1;
 let scores = [0, 0];
 let currentBreak = 0;
@@ -66,7 +65,40 @@ function draw() {
   
   for (let ball of balls) ball.show();
   drawUI();
-  if (cueStick.isCharging) drawPowerMeter();
+  if (cueStick.isCharging || cueStick.animationState === 'pulling') drawPowerMeter();
+}
+
+// ────────────────────────────────────────────────
+// INPUT HANDLING (SPACEBAR LOGIC)
+// ────────────────────────────────────────────────
+
+function keyPressed() {
+  if (key === ' ') {
+    if (gameState === 'placing') {
+      gameState = 'aiming'; // Confirm placement
+    } else if (gameState === 'aiming') {
+      cueStick.isCharging = true;
+      cueStick.animationState = 'pulling';
+    }
+  }
+}
+
+function keyReleased() {
+  if (key === ' ' && cueStick.isCharging) {
+    cueStick.isCharging = false;
+    cueStick.animationState = 'striking';
+    gameState = 'shooting';
+  }
+}
+
+function updateAiming() {
+  let dx = mouseX - cueBall.pos.x;
+  let dy = mouseY - cueBall.pos.y;
+  cueStick.angle = atan2(dy, dx);
+  
+  if (cueStick.isCharging) {
+    cueStick.power = constrain(cueStick.power + 0.5, 0, cueStick.maxPower);
+  }
 }
 
 // ────────────────────────────────────────────────
@@ -76,24 +108,36 @@ function draw() {
 function handlePlacing() {
   let baulkX = 60 + TABLE_W * 0.2;
   let centerY = 60 + TABLE_H / 2;
-  let dRadius = 70; // Radius of the "D"
+  let dRadius = 70; 
 
   if (mouseIsPressed) {
-    // Check if mouse is inside the "D" arc
     let d = dist(mouseX, mouseY, baulkX, centerY);
     if (d <= dRadius && mouseX <= baulkX) {
       cueBall.pos.set(mouseX, mouseY);
     }
   }
   
-  fill(255, 200);
+  fill(255);
   textAlign(CENTER);
-  text("DRAG CUE BALL INTO POSITION • PRESS SPACE TO CONFIRM", width/2, height - 160);
+  textSize(18);
+  text("DRAG WHITE BALL • PRESS SPACE TO CONFIRM POSITION", width/2, height - 160);
 }
 
 // ────────────────────────────────────────────────
-// GAME LOGIC & RULES
+// CORE GAME ENGINE
 // ────────────────────────────────────────────────
+
+function updatePhysics() {
+  let moving = false;
+  for (let ball of balls) {
+    if (ball.potted) continue;
+    ball.update();
+    if (ball.vel.mag() > 0.1) moving = true;
+    for (let p of pockets) if (ball.pos.dist(p) < POCKET_R) handlePot(ball);
+    for (let other of balls) if (ball !== other && !other.potted) ball.checkCollision(other);
+  }
+  if (!moving) endShot();
+}
 
 function handlePot(ball) {
   ball.potted = true;
@@ -104,7 +148,7 @@ function handlePot(ball) {
 
   if (ball === cueBall) {
     foulCommitted = true;
-    scores[opponent - 1] += 4; // Standard foul points
+    scores[opponent - 1] += 4;
   } else {
     if (phase === 'red' && ball.isRed) {
       scores[currentPlayer - 1] += 1;
@@ -117,7 +161,6 @@ function handlePot(ball) {
       setTimeout(() => ball.respot(), 500);
       phase = 'red';
     } else {
-      // Wrong ball potted
       foulCommitted = true;
       scores[opponent - 1] += max(4, ball.value);
     }
@@ -126,7 +169,6 @@ function handlePot(ball) {
 
 function endShot() {
   let opponent = currentPlayer === 1 ? 2 : 1;
-
   if (foulCommitted || ballsPottedThisShot.length === 0) {
     currentPlayer = opponent;
     currentBreak = 0;
@@ -136,7 +178,7 @@ function endShot() {
   if (cueBall.potted) {
     cueBall.potted = false;
     cueBall.vel.set(0, 0);
-    gameState = 'placing'; // Back to ball-in-hand
+    gameState = 'placing'; 
   } else {
     gameState = 'aiming';
   }
@@ -148,35 +190,8 @@ function endShot() {
 }
 
 // ────────────────────────────────────────────────
-// INPUT HANDLING
+// CLASSES & HELPERS
 // ────────────────────────────────────────────────
-
-function keyPressed() {
-  if (gameState === 'placing' && key === ' ') {
-    gameState = 'aiming';
-  }
-}
-
-function mousePressed() {
-  if (gameState === 'aiming') {
-    cueStick.isCharging = true;
-    cueStick.animationState = 'pulling';
-  }
-}
-
-function mouseReleased() {
-  if (cueStick.isCharging) {
-    cueStick.isCharging = false;
-    cueStick.animationState = 'striking';
-    gameState = 'shooting';
-  }
-}
-
-// ────────────────────────────────────────────────
-// CORE CLASSES & DRAWING
-// ────────────────────────────────────────────────
-
-
 
 class Ball {
   constructor(x, y, col, val, isRed) {
@@ -203,13 +218,11 @@ class Ball {
 
   show() {
     if (this.potted) return;
-    push();
-    noStroke();
     fill(this.color);
+    noStroke();
     ellipse(this.pos.x, this.pos.y, BALL_R * 2);
     fill(255, 80);
     ellipse(this.pos.x - 3, this.pos.y - 3, BALL_R * 0.5);
-    pop();
   }
 
   respot() {
@@ -233,42 +246,82 @@ class Ball {
   }
 }
 
+function updateCueAnimation() {
+  if (cueStick.animationState === 'pulling') {
+    let target = map(cueStick.power, 0, cueStick.maxPower, 0, cueStick.maxPullBack);
+    cueStick.pullBack = lerp(cueStick.pullBack, target, 0.2);
+  } else if (cueStick.animationState === 'striking') {
+    cueStick.pullBack = lerp(cueStick.pullBack, -15, 0.5);
+    if (cueStick.pullBack < 2) {
+      executeShot();
+      cueStick.animationState = 'idle';
+      gameState = 'moving';
+    }
+  }
+}
+
+function executeShot() {
+  let force = p5.Vector.fromAngle(cueStick.angle).mult(cueStick.power);
+  cueBall.vel.set(force);
+}
+
 function drawTable() {
   background(30);
   fill(101, 67, 33);
   rect(40, 40, TABLE_W + 40, TABLE_H + 40, 10);
   fill(20, 100, 40);
   rect(60, 60, TABLE_W, TABLE_H);
-  
   stroke(255, 80);
   let baulkX = 60 + TABLE_W * 0.2;
   line(baulkX, 60, baulkX, 60 + TABLE_H);
   noFill();
   arc(baulkX, 60 + TABLE_H/2, 140, 140, HALF_PI, -HALF_PI);
-  
   fill(0);
   pockets.forEach(p => ellipse(p.x, p.y, POCKET_R * 2));
 }
 
-function updatePhysics() {
-  let moving = false;
-  for (let ball of balls) {
-    if (ball.potted) continue;
-    ball.update();
-    if (ball.vel.mag() > 0.1) moving = true;
-    for (let p of pockets) if (ball.pos.dist(p) < POCKET_R) handlePot(ball);
-    for (let other of balls) if (ball !== other && !other.potted) ball.checkCollision(other);
-  }
-  if (!moving) endShot();
+function drawCueStick() {
+  push();
+  translate(cueBall.pos.x, cueBall.pos.y);
+  rotate(cueStick.angle);
+  let d = -60 - cueStick.pullBack;
+  fill(222, 184, 135);
+  rect(d - 300, -5, 300, 10, 2);
+  pop();
 }
 
-// ... (drawCueStick, drawTrajectory, drawGhostBall, drawPowerMeter, drawUI, updateAiming, updateCueAnimation, executeShot stay the same)
+function drawTrajectory() {
+  stroke(255, 30);
+  let end = p5.Vector.fromAngle(cueStick.angle).mult(400).add(cueBall.pos);
+  line(cueBall.pos.x, cueBall.pos.y, end.x, end.y);
+}
+
+function drawGhostBall() {
+  noFill();
+  stroke(255, 50);
+  ellipse(mouseX, mouseY, BALL_R * 2);
+}
+
+function drawPowerMeter() {
+  fill(0, 150);
+  rect(width/2 - 100, height - 120, 200, 20, 5);
+  fill(255, 165, 0);
+  rect(width/2 - 100, height - 120, map(cueStick.power, 0, cueStick.maxPower, 0, 200), 20, 5);
+}
+
+function drawUI() {
+  fill(255);
+  textAlign(CENTER);
+  textSize(22);
+  text(`P1: ${scores[0]} | P2: ${scores[1]}`, width/2, height - 60);
+  textSize(16);
+  text(`BREAK: ${currentBreak} | NEXT: ${phase.toUpperCase()}`, width/2, height - 35);
+}
 
 function initGame() {
   balls = [];
   cueBall = new Ball(60 + TABLE_W * 0.18, 60 + TABLE_H * 0.5, '#fff', 0, false);
   balls.push(cueBall);
-  
   let bX = 60 + TABLE_W * 0.2;
   balls.push(new Ball(bX, 60 + TABLE_H * 0.62, '#ff0', 2, false)); 
   balls.push(new Ball(bX, 60 + TABLE_H * 0.5, '#842', 4, false));  
@@ -276,7 +329,6 @@ function initGame() {
   balls.push(new Ball(60 + TABLE_W * 0.5, 60 + TABLE_H * 0.5, '#00f', 5, false)); 
   balls.push(new Ball(60 + TABLE_W * 0.75, 60 + TABLE_H * 0.5, '#f0f', 6, false)); 
   balls.push(new Ball(60 + TABLE_W * 0.9, 60 + TABLE_H * 0.5, '#111', 7, false));  
-  
   let sX = 60 + TABLE_W * 0.77;
   for (let i = 0; i < 5; i++) {
     for (let j = 0; j <= i; j++) {
